@@ -1,0 +1,104 @@
+{
+  "3df": "0.1",
+  "title": "3DF sample",
+  "author": "3DF reference tools",
+  "page": {
+    "width_mm": 210,
+    "height_mm": 297
+  },
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "text",
+          "x": 20,
+          "y": 22,
+          "w": 170,
+          "h": 16,
+          "text": "A document that moves",
+          "font_size_pt": 26,
+          "weight": 600
+        },
+        {
+          "type": "text",
+          "x": 20,
+          "y": 40,
+          "w": 170,
+          "h": 24,
+          "text": "Page 1 holds an animated GIF. Page 2 holds a 3D model you can rotate and zoom. Every animated or 3D element carries a static fallback for printing and older readers.",
+          "font_size_pt": 11
+        },
+        {
+          "type": "image",
+          "x": 20,
+          "y": 72,
+          "w": 170,
+          "h": 85,
+          "src": "assets/deploy.gif",
+          "fallback": "assets/deploy_fallback.png",
+          "alt": "Accordion-folded panels unfolding"
+        },
+        {
+          "type": "text",
+          "x": 20,
+          "y": 160,
+          "w": 170,
+          "h": 8,
+          "text": "Figure 1. Panel deployment sequence (GIF, loops).",
+          "font_size_pt": 9,
+          "color": "#5a6270"
+        }
+      ]
+    },
+    {
+      "elements": [
+        {
+          "type": "text",
+          "x": 20,
+          "y": 22,
+          "w": 170,
+          "h": 12,
+          "text": "Interactive model",
+          "font_size_pt": 20,
+          "weight": 600
+        },
+        {
+          "type": "text",
+          "x": 20,
+          "y": 36,
+          "w": 170,
+          "h": 12,
+          "text": "Drag to orbit, scroll or pinch to zoom, right-drag to pan. Double-click to reset the view.",
+          "font_size_pt": 11
+        },
+        {
+          "type": "model",
+          "x": 20,
+          "y": 52,
+          "w": 170,
+          "h": 120,
+          "src": "assets/truss.glb",
+          "fallback": "assets/truss_fallback.png",
+          "alt": "Four-bay square truss",
+          "camera": {
+            "yaw_deg": 35,
+            "pitch_deg": 20,
+            "distance": 4.2
+          },
+          "auto_rotate": false,
+          "background": "#eef1f4"
+        },
+        {
+          "type": "text",
+          "x": 20,
+          "y": 175,
+          "w": 170,
+          "h": 8,
+          "text": "Figure 2. Four-bay truss (glTF binary, 1 m bays).",
+          "font_size_pt": 9,
+          "color": "#5a6270"
+        }
+      ]
+    }
+  ]
+}

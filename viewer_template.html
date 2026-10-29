@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3DF Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --desk:#D3D8DE; --bar:#F4F6F8; --bar-line:#BCC3CC; --ink:#1C232E; --muted:#5A6270;
+  --accent:#2F5BD3; --accent-ink:#FFFFFF; --paper:#FFFFFF; --paper-ink:#1C232E;
+  --shadow:0 1px 2px rgba(20,30,45,.18),0 6px 24px rgba(20,30,45,.12);
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --desk:#1B2029; --bar:#252B35; --bar-line:#3A424F; --ink:#E6EAF0; --muted:#A3ACB9;
+    --accent:#7FA0FF; --accent-ink:#0F1520;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 28px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#1B2029; --bar:#252B35; --bar-line:#3A424F; --ink:#E6EAF0; --muted:#A3ACB9;
+  --accent:#7FA0FF; --accent-ink:#0F1520;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 28px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 56px)}
+body{margin:0;background:var(--desk);color:var(--ink);font:15px/1.45 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;gap:12px;
+  padding:10px 16px;background:var(--bar);border-bottom:1px solid var(--bar-line)}
+.brand{font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.brand span{color:var(--muted);font-weight:400}
+.doc-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.pageno{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+button,.btn{font:inherit;font-weight:500;border:1px solid var(--bar-line);background:transparent;color:var(--ink);
+  padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;text-decoration:none}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding:28px 16px 64px;display:flex;flex-direction:column;align-items:center;gap:28px}
+.page{position:relative;width:100%;max-width:820px;background:var(--paper);color:var(--paper-ink);box-shadow:var(--shadow);overflow:hidden}
+.el{position:absolute}
+.el.text{font-family:"Source Serif 4",Georgia,serif;line-height:1.35;overflow:hidden}
+.el.image img,.el.model img.fb{width:100%;height:100%;object-fit:contain;display:block}
+.el.model canvas{width:100%!important;height:100%!important;display:block;touch-action:none;cursor:grab}
+.el.model canvas:active{cursor:grabbing}
+.el.model .hint{position:absolute;right:8px;bottom:8px;font:500 12px/1 "Hanken Grotesk",sans-serif;color:#3a4250;
+  background:rgba(255,255,255,.85);padding:5px 8px;border-radius:4px;pointer-events:none;transition:opacity .4s}
+.el.model.live .fb{display:none}
+.el.model:not(.live) .fb{cursor:default}
+.drop{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--desk) 80%,transparent);font-size:20px;font-weight:600;border:3px dashed var(--accent)}
+.drop.on{display:flex}
+.msg{max-width:560px;text-align:center;color:var(--muted);padding:40px 16px}
+.msg strong{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+@media (max-width:560px){.doc-title{display:none}.brand span{display:none}}
+@media print{
+  header,.drop{display:none}
+  body,:root{background:#fff;padding:0}
+  main{padding:0;gap:0}
+  .page{box-shadow:none;max-width:none;break-after:page}
+  .el.model canvas,.el.model .hint{display:none}
+  .el.model .fb{display:block!important}
+  .el.image img[data-fallback]{content:var(--fb)}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">3DF <span>viewer</span></div>
+  <div class="doc-title" id="docTitle"></div>
+  <div class="pageno" id="pageno"></div>
+  <button class="primary" id="openBtn">Open .3df</button>
+  <input type="file" id="file" accept=".3df,application/zip" hidden>
+</header>
+<main id="main"><div class="msg"><strong>Loading the sample document</strong></div></main>
+<div class="drop" id="drop">Drop a .3df file to open it</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const SAMPLE_B64 = "__SAMPLE_B64__";
+const MIMETYPE = "application/vnd.3df+zip";
+const PT_TO_MM = 25.4 / 72;
+const $ = id => document.getElementById(id);
+let cleanup = [];
+
+function b64ToBytes(b64){const s=atob(b64);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
+
+function showMessage(title, body){
+  $("main").innerHTML = "";
+  const m = document.createElement("div"); m.className = "msg";
+  const t = document.createElement("strong"); t.textContent = title; m.appendChild(t);
+  m.appendChild(document.createTextNode(body)); $("main").appendChild(m);
+  $("docTitle").textContent = ""; $("pageno").textContent = "";
+}
+
+let loadToken = 0;
+
+async function open3DF(data, name){
+  const token = ++loadToken;
+  const stale = () => token !== loadToken;
+  cleanup.forEach(f => { try{f()}catch(e){} }); cleanup = [];
+  try { await render3DF(data, name, stale); }
+  catch(e){ if(!stale()) showMessage("The document is damaged", e.message || "It couldn’t be read."); }
+}
+
+async function render3DF(data, name, stale){
+  let zip;
+  try { zip = await JSZip.loadAsync(data); }
+  catch(e){ return showMessage("This file isn’t a 3DF", `“${name}” is not a ZIP container. Open a file ending in .3df.`); }
+  const mt = zip.file("mimetype");
+  if(!mt || (await mt.async("string")).trim() !== MIMETYPE)
+    return showMessage("This file isn’t a 3DF", `“${name}” has no 3DF mimetype entry, so it can’t be read.`);
+  let doc;
+  try { doc = JSON.parse(await zip.file("document.json").async("string")); }
+  catch(e){ return showMessage("The document is damaged", "document.json is missing or isn’t valid JSON."); }
+  const W = Number(doc.page && doc.page.width_mm), H = Number(doc.page && doc.page.height_mm);
+  if(!(W > 0 && H > 0) || !Array.isArray(doc.pages))
+    return showMessage("The document is damaged", "document.json needs a page size and a list of pages.");
+  if(stale()) return;
+
+  const urls = {};
+  const asset = path => { const f = zip.file(path); if(!f) throw new Error("Missing asset: " + path); return f; };
+  const blobUrl = async (path, type) => {
+    if(urls[path]) return urls[path];
+    const u = URL.createObjectURL(new Blob([await asset(path).async("uint8array")], {type}));
+    cleanup.push(() => URL.revokeObjectURL(u)); return urls[path] = u;
+  };
+  const mimeOf = p => ({gif:"image/gif",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"})[String(p).split(".").pop().toLowerCase()] || "application/octet-stream";
+
+  $("docTitle").textContent = doc.title || name;
+  document.title = (doc.title || name) + " – 3DF";
+  const main = $("main"); main.innerHTML = "";
+  const pages = [];
+
+  for(const [pi, p] of doc.pages.entries()){
+    const pg = document.createElement("section");
+    pg.className = "page"; pg.style.aspectRatio = `${W} / ${H}`;
+    pg.setAttribute("aria-label", `Page ${pi+1}`); pg.id = "page-" + (pi+1);
+    main.appendChild(pg); pages.push(pg);
+    const ro = new ResizeObserver(() => pg.style.setProperty("--mm", (pg.clientWidth / W) + "px"));
+    ro.observe(pg); cleanup.push(() => ro.disconnect());
+
+    for(const el of ((p && p.elements) || [])){
+      if(stale()) return;
+      const box = document.createElement("div");
+      box.className = "el " + el.type;
+      Object.assign(box.style, {left:`calc(var(--mm) * ${Number(el.x)})`, top:`calc(var(--mm) * ${Number(el.y)})`,
+        width:`calc(var(--mm) * ${Number(el.w)})`, height:`calc(var(--mm) * ${Number(el.h)})`, zIndex: Number(el.z) || 0});
+      pg.appendChild(box);
+      try{
+        if(el.type === "text"){
+          box.textContent = el.text;
+          box.style.fontSize = `calc(var(--mm) * ${(Number(el.font_size_pt) || 11) * PT_TO_MM})`;
+          if(el.font_family) box.style.fontFamily = el.font_family + ', "Source Serif 4", Georgia, serif';
+          box.style.fontWeight = el.weight || 400;
+          box.style.color = el.color || "inherit";
+          box.style.textAlign = el.align || "left";
+        } else if(el.type === "image"){
+          const img = document.createElement("img");
+          img.alt = el.alt || ""; img.src = await blobUrl(el.src, mimeOf(el.src));
+          if(el.fallback){ img.dataset.fallback = "1"; box.style.setProperty("--fb", `url(${await blobUrl(el.fallback, mimeOf(el.fallback))})`); }
+          box.appendChild(img);
+        } else if(el.type === "model"){
+          if(el.fallback){ const fb = document.createElement("img"); fb.className = "fb"; fb.alt = el.alt || ""; fb.src = await blobUrl(el.fallback, mimeOf(el.fallback)); box.appendChild(fb); }
+          lazyModel(box, el, await asset(el.src).async("arraybuffer"));
+        } else {
+          box.remove();
+        }
+      } catch(err){
+        box.textContent = "Couldn’t show this element: " + err.message;
+        Object.assign(box.style, {font:"13px/1.3 'Hanken Grotesk',sans-serif", color:"#a33", outline:"1px dashed #a33", padding:"6px"});
+      }
+    }
+  }
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if(e.isIntersecting) $("pageno").textContent = `Page ${pages.indexOf(e.target)+1} of ${pages.length}`;
+  }), {threshold:0.5});
+  pages.forEach(p => io.observe(p)); cleanup.push(() => io.disconnect());
+  $("pageno").textContent = `Page 1 of ${pages.length}`;
+}
+
+// Browsers allow roughly 16 live WebGL contexts, so a model only runs while it is near the screen;
+// otherwise its fallback image shows.
+function lazyModel(box, el, buf){
+  let live = null, pending = false;
+  const io = new IntersectionObserver(([e]) => {
+    if(e.isIntersecting && !live && !pending){
+      pending = true;
+      mountModel(box, el, buf).then(m => { pending = false; live = m; box.classList.add("live"); })
+        .catch(err => { pending = false; io.disconnect(); box.classList.add("failed"); box.title = "This 3D model couldn’t be loaded"; });
+    } else if(!e.isIntersecting && live){
+      live.dispose(); live = null; box.classList.remove("live");
+    }
+  }, {rootMargin:"100% 0px"});
+  io.observe(box);
+  cleanup.push(() => { io.disconnect(); if(live) live.dispose(); });
+}
+
+function mountModel(box, el, buf){
+  return new Promise((resolve, reject) => {
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    const canvas = renderer.domElement;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", (el.alt || "3D model") + ". Drag to rotate, scroll to zoom.");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(el.background || "#eef1f4");
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a3, 0.9));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(3, 5, 4); scene.add(sun);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
+    const controls = new THREE.OrbitControls(camera, canvas);
+    const hint = document.createElement("div"); hint.className = "hint"; hint.textContent = "Drag to rotate";
+    let raf = 0, alive = true, ro = null;
+    const render = () => { if(alive) renderer.render(scene, camera); };
+    const size = () => { const w = box.clientWidth, h = box.clientHeight; if(!w||!h) return;
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); render(); };
+    const dispose = () => {
+      alive = false; cancelAnimationFrame(raf); if(ro) ro.disconnect(); controls.dispose();
+      scene.traverse(o => { if(o.geometry) o.geometry.dispose(); if(o.material) [].concat(o.material).forEach(m => m.dispose()); });
+      renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); hint.remove();
+    };
+
+    new THREE.GLTFLoader().parse(buf, "", gltf => {
+      if(!alive) return;
+      box.appendChild(canvas); box.appendChild(hint);
+      const obj = gltf.scene; scene.add(obj);
+      const bb = new THREE.Box3().setFromObject(obj), center = bb.getCenter(new THREE.Vector3());
+      const radius = bb.getSize(new THREE.Vector3()).length() / 2 || 1;
+      const cam = el.camera || {};
+      const yaw = THREE.MathUtils.degToRad(cam.yaw_deg ?? 35), pitch = THREE.MathUtils.degToRad(cam.pitch_deg ?? 20);
+      const dist = cam.distance ?? radius * 2.6;
+      const home = new THREE.Vector3(center.x + dist*Math.cos(pitch)*Math.sin(yaw), center.y + dist*Math.sin(pitch), center.z + dist*Math.cos(pitch)*Math.cos(yaw));
+      const reset = () => { camera.position.copy(home); controls.target.copy(center); controls.update(); render(); };
+      controls.minDistance = radius * 0.3; controls.maxDistance = Math.max(radius * 12, dist * 2);
+      controls.addEventListener("change", () => { hint.style.opacity = 0; render(); });
+      canvas.addEventListener("dblclick", reset);
+      ro = new ResizeObserver(size); ro.observe(box);
+      reset(); size();
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(el.auto_rotate && !reduce){ controls.autoRotate = true; const loop = () => { if(!alive) return; controls.update(); raf = requestAnimationFrame(loop); }; loop(); }
+      resolve({dispose});
+    }, () => { dispose(); reject(new Error("model could not be parsed")); });
+  });
+}
+
+$("openBtn").onclick = () => $("file").click();
+$("file").onchange = async e => { const f = e.target.files[0]; if(f) open3DF(await f.arrayBuffer(), f.name); e.target.value = ""; };
+let depth = 0;
+addEventListener("dragenter", e => { e.preventDefault(); depth++; $("drop").classList.add("on"); });
+addEventListener("dragleave", e => { if(--depth <= 0){ depth = 0; $("drop").classList.remove("on"); } });
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", async e => { e.preventDefault(); depth = 0; $("drop").classList.remove("on");
+  const f = e.dataTransfer.files[0]; if(f) open3DF(await f.arrayBuffer(), f.name); });
+
+if(!window.JSZip || !window.THREE || !THREE.GLTFLoader) showMessage("The viewer couldn’t start", "A required script failed to load. Check your connection and reload.");
+else open3DF(b64ToBytes(SAMPLE_B64), "sample.3df");
+</script>
+</body>
+</html>

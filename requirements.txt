@@ -1,0 +1,5 @@
+python-pptx
+lxml
+pymupdf
+pillow
+numpy
